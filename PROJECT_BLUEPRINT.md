@@ -1,7 +1,7 @@
 
 <!-- FILENAME: PROJECT_BLUEPRINT_V1.1.md -->
 ```markdown
-# PROJECT BLUEPRINT: Tax Co-Pilot
+# PROJECT BLUEPRINT: Consulting Co-Pilot
 
 - **version**: 1.1
 - **status**: IN_PROGRESS
