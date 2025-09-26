@@ -1,17 +1,30 @@
 # config.yml
+
 # Canonical configuration for the Tax Co-Pilot application
-default_model: "gemini-1.5-flash"
+service:
+  version: "1.0.0"
+  log_level: "INFO"
 
-providers:
-  gemini:
-    api_key_env: "GEMINI_API_KEY"
-    api_endpoint: "https://generativelanguage.googleapis.com/v1beta/models/"
-    models:
-      - "gemini-1.5-flash"
-      - "gemini-1.5-pro"
+api:
+  static_key: "dev-key" # In production, override with env var STATIC_API_KEY
 
-  deepseek:
-    api_key_env: "DEEPSEEK_API_KEY"
-    api_endpoint: "https://api.deepseek.com/chat/completions"
-    models:
-      - "deepseek-coder"
+database:
+  # In production, override with env var DATABASE_URL
+  url: "postgresql+psycopg://postgres:mysecretpassword@127.0.0.1:5432/postgres"
+
+ai:
+  default_model: "gemini-1.5-flash"
+  source_language: "Indonesian"
+  target_language: "Indonesian"
+  providers:
+    gemini:
+      api_key_env: "GEMINI_API_KEY"
+      api_endpoint: "https://generativelanguage.googleapis.com/v1beta/models/"
+      models:
+        - "gemini-1.5-flash"
+        - "gemini-1.5-pro"
+    deepseek:
+      api_key_env: "DEEPSEEK_API_KEY"
+      api_endpoint: "https://api.deepseek.com/chat/completions"
+      models:
+        - "deepseek-coder"

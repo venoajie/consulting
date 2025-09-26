@@ -1,26 +1,17 @@
 # app\core\db.py
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+    
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import sessionmaker
-from app.core.config import settings
+from fastapi import Request
 
-# Create an asynchronous engine
-engine = create_async_engine(
-    str(settings.DATABASE_URL),
-    pool_pre_ping=True, # Checks connection vitality before use
-)
+# The engine is now created and managed in main.py's lifespan
+# This file now only provides the session dependency
 
-# Create a session factory
-AsyncSessionFactory = sessionmaker(
-    engine,
-    class_=AsyncSession,
-    expire_on_commit=False, # Allows objects to be used after commit
-)
-
-async def get_db_session() -> AsyncSession:
-    """FastAPI dependency to get a database session."""
-    async with AsyncSessionFactory() as session:
+async def get_db_session(request: Request) -> AsyncSession:
+    """FastAPI dependency to get a database session from the connection pool."""
+    engine = request.app.state.db_engine
+    async_session_factory = sessionmaker(
+        engine, class_=AsyncSession, expire_on_commit=False
+    )
+    async with async_session_factory() as session:
         yield session
-
-async def close_db_connection():
-    """Application shutdown event handler to dispose of the engine."""
-    await engine.dispose()

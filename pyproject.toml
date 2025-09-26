@@ -16,7 +16,10 @@ dependencies = [
     "sqlalchemy==2.0.30",
     "tomli==2.0.1",   
     "uvicorn[standard]==0.37.0",
-    #sentence-transformers,
+    "sentence-transformers==5.1.0",
+    "orjson==3.10.18",
+    "uvloop==0.21.0"
+
     ]
 
 [project.optional-dependencies]
