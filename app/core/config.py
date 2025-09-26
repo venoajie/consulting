@@ -1,6 +1,5 @@
 # app\core\config.py
 
-
 import yaml
 from pathlib import Path
 from typing import List, Dict, Optional
@@ -13,10 +12,12 @@ class ServiceConfig(BaseModel):
     log_level: str
 
 class ApiConfig(BaseModel):
-    static_key: str = Field(..., alias="STATIC_API_KEY")
+    # This now directly matches the key in config.yml
+    static_key: str
 
 class DatabaseConfig(BaseModel):
-    url: PostgresDsn = Field(..., alias="DATABASE_URL")
+    # This now directly matches the key in config.yml
+    url: PostgresDsn
 
 class ProviderConfig(BaseModel):
     api_key_env: str
@@ -35,10 +36,10 @@ class MergedConfig(BaseModel):
     database: DatabaseConfig
     ai: AIConfig
 
-# --- Main Settings Class (now much simpler) ---
+# --- Main Settings Class ---
 class Settings(BaseSettings):
-    # These are the only settings loaded directly from environment variables
-    # They override the values from the YAML file.
+    # These are environment variables that can OVERRIDE the YAML config.
+    # They are all optional.
     STATIC_API_KEY: Optional[str] = None
     DATABASE_URL: Optional[PostgresDsn] = None
     GEMINI_API_KEY: Optional[str] = None
@@ -54,13 +55,17 @@ def load_settings() -> Settings:
     with open(config_path, 'r') as f:
         config_data = yaml.safe_load(f)
     
-    # Load settings from .env and create an initial instance
-    env_settings = Settings(app=MergedConfig.model_validate(config_data))
+    # First, validate the YAML data against our models
+    merged_config = MergedConfig.model_validate(config_data)
+    
+    # Load settings from .env
+    env_settings = Settings(app=merged_config)
     
     # Manually override YAML values with any values set in the environment
     if env_settings.STATIC_API_KEY:
         env_settings.app.api.static_key = env_settings.STATIC_API_KEY
     if env_settings.DATABASE_URL:
+        # Pydantic v2 returns a URL object, so we convert it to a string for consistency
         env_settings.app.database.url = str(env_settings.DATABASE_URL)
         
     return env_settings
