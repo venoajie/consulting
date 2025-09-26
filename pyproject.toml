@@ -8,13 +8,16 @@ requires-python = ">=3.11"
 
 dependencies = [
     "fastapi==0.117.1",
-    "uvicorn[standard]==0.37.0",
+    "pgvector==0.2.5",
+    "psycopg[binary]==3.1.19",
     "pydantic==2.11.5",
     "pydantic-settings==2.3.0",
-    "tomli==2.0.1",   
+    "pyyaml==6.0.2",
     "sqlalchemy==2.0.30",
-    "psycopg[binary]==3.1.19",
-    "pgvector==0.2.5"]
+    "tomli==2.0.1",   
+    "uvicorn[standard]==0.37.0",
+    #sentence-transformers,
+    ]
 
 [project.optional-dependencies]
 dev = [

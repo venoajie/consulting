@@ -1,0 +1,17 @@
+# config.yml
+# Canonical configuration for the Tax Co-Pilot application
+default_model: "gemini-1.5-flash"
+
+providers:
+  gemini:
+    api_key_env: "GEMINI_API_KEY"
+    api_endpoint: "https://generativelanguage.googleapis.com/v1beta/models/"
+    models:
+      - "gemini-1.5-flash"
+      - "gemini-1.5-pro"
+
+  deepseek:
+    api_key_env: "DEEPSEEK_API_KEY"
+    api_endpoint: "https://api.deepseek.com/chat/completions"
+    models:
+      - "deepseek-coder"

@@ -1,64 +1,100 @@
 # app\services\llm.py
 
+
+import os
 import aiohttp
 import asyncio
+import time
+from typing import Dict, Tuple
+from app.core.config import settings, get_provider_info_for_model
 
-class LLMService:
-    def __init__(self, api_key: str):
-        self._api_key = api_key
+class APIKeyNotFoundError(Exception):
+    pass
+
+class ResponseHandler:
+    def __init__(self):
         self._session = None
 
     async def get_session(self) -> aiohttp.ClientSession:
-        """Initializes and returns the aiohttp session, creating it if needed."""
         if self._session is None or self._session.closed:
-            # You can configure timeouts and other settings here
-            self._session = aiohttp.ClientSession()
+            self._session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=180.0))
         return self._session
 
-    async def generate_answer(self, question: str) -> str:
-        """
-        (Mocked) Makes a call to an external LLM to get an answer.
-        In the future, this will be a real API call.
-        """
-        # Simulate a network call
-        await asyncio.sleep(0.5)
+    async def call_api(
+        self,
+        question: str,
+        model: str = None,
+        max_retries: int = 3,
+    ) -> str:
+        """Calls the specified AI model with robust error handling and retries."""
+        model_to_use = model or settings.ai.default_model
+        provider_info = get_provider_info_for_model(model_to_use)
         
-        # In a real implementation, you would use the session like this:
-        # session = await self.get_session()
-        # async with session.post(url, json=payload, headers=headers) as response:
-        #     ...
+        if not provider_info:
+            return f"Error: Model '{model_to_use}' is not configured."
 
-        mock_answer = f"This is a mocked answer from the LLMService for your question: '{question}'"
-        return mock_answer
+        provider_name = provider_info["provider_name"]
+        provider_config = provider_info["config"]
+        api_key = os.getenv(provider_config.api_key_env)
 
+        if not api_key:
+            raise APIKeyNotFoundError(f"API key env var '{provider_config.api_key_env}' not set.")
+
+        for attempt in range(max_retries):
+            try:
+                print(f"Calling {provider_name} API (Model: {model_to_use}, Attempt: {attempt + 1}/{max_retries})...")
+                if provider_name == "gemini":
+                    return await self._call_gemini(api_key, question, model_to_use)
+                elif provider_name == "deepseek":
+                    return await self._call_openai_compatible(api_key, question, provider_config.api_endpoint)
+                else:
+                    return f"Error: Provider '{provider_name}' not supported."
+
+            except Exception as e:
+                print(f"API call failed: {e}")
+                if attempt >= max_retries - 1:
+                    return f"Error: API call failed after {max_retries} attempts."
+                wait_time = 2 ** (attempt + 1)
+                print(f"Retrying in {wait_time}s...")
+                await asyncio.sleep(wait_time)
+        return "Error: Should not be reached."
+
+    async def _call_gemini(self, api_key: str, question: str, model: str) -> str:
+        session = await self.get_session()
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+        payload = {"contents": [{"parts": [{"text": question}]}]}
+        headers = {"Content-Type": "application/json"}
+
+        async with session.post(url, json=payload, headers=headers) as response:
+            response.raise_for_status()
+            data = await response.json()
+            return data["candidates"][0]["content"]["parts"][0]["text"].strip()
+
+    async def _call_openai_compatible(self, api_key: str, question: str, endpoint: str) -> str:
+        session = await self.get_session()
+        headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+        payload = {"model": "deepseek-coder", "messages": [{"role": "user", "content": question}]}
+
+        async with session.post(endpoint, json=payload, headers=headers) as response:
+            response.raise_for_status()
+            data = await response.json()
+            return data["choices"][0]["message"]["content"].strip()
+            
     async def close_session(self):
-        """Closes the aiohttp session if it exists."""
         if self._session and not self._session.closed:
             await self._session.close()
 
 # --- Dependency Injection Setup ---
-# This setup allows FastAPI to manage the lifecycle of our service.
+response_handler_instance = None
 
-# Global instance of the service
-# Note: For a real app, you might manage this more robustly,
-# but this is a common and effective pattern.
-llm_service_instance = None
+async def get_response_handler() -> ResponseHandler:
+    global response_handler_instance
+    if response_handler_instance is None:
+        response_handler_instance = ResponseHandler()
+    return response_handler_instance
 
-async def get_llm_service() -> LLMService:
-    """
-    FastAPI dependency that provides an LLMService instance.
-    This ensures we use a single instance for the application's lifespan.
-    """
-    global llm_service_instance
-    if llm_service_instance is None:
-        # In a real app, the API key would come from settings
-        # from app.core.config import settings
-        # llm_service_instance = LLMService(api_key=settings.LLM_API_KEY)
-        llm_service_instance = LLMService(api_key="dummy-key")
-    return llm_service_instance
-
-async def close_llm_service():
-    """Application shutdown event handler to clean up the session."""
-    service = await get_llm_service()
-    await service.close_session()
+async def close_response_handler():
+    global response_handler_instance
+    if response_handler_instance:
+        await response_handler_instance.close_session()
 

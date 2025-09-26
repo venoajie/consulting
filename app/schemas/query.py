@@ -1,9 +1,10 @@
-
+# app\schemas\query.py
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
 
 class QueryRequest(BaseModel):
     question: str
+    model: Optional[str] = None
 
 class Source(BaseModel):
     file_path: str
